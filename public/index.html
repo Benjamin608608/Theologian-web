@@ -557,10 +557,21 @@
 
             formatAnswer(text) {
                 return text
-                    .replace(/\*\*(.*?)\*\*/g, '<h4>$1</h4>')
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/^/, '<p>')
-                    .replace(/$/, '</p>');
+                    // 處理粗體文字 **text** -> <strong>text</strong>
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    // 處理斜體文字 *text* -> <em>text</em>
+                    .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>')
+                    // 處理標題（數字開頭的段落）
+                    .replace(/^(\d+\.\s+[^：\n]+：?)$/gm, '<h4>$1</h4>')
+                    // 處理段落
+                    .replace(/\n\n+/g, '</p><p>')
+                    // 處理單個換行
+                    .replace(/\n/g, '<br>')
+                    // 包裝成段落
+                    .replace(/^(?!<h4>)/, '<p>')
+                    .replace(/(?<!<\/h4>)$/, '</p>')
+                    // 清理空段落
+                    .replace(/<p><\/p>/g, '');
             }
 
             generateSourcesHTML(sources) {
