@@ -1,4 +1,61 @@
-<!DOCTYPE html>
+<script>
+        // Google 登錄相關變數
+        let currentUser = null;
+        const GOOGLE_CLIENT_ID = '819177680816-qhqs26nalisihdnducd35so1g4ai66rv.apps.googleusercontent.com';
+
+        // 除錯：檢查 Google API 是否載入
+        window.onload = function() {
+            console.log('頁面載入完成');
+            console.log('Google API 狀態:', typeof google !== 'undefined' ? '已載入' : '未載入');
+            
+            // 延遲初始化 Google 登錄
+            setTimeout(() => {
+                if (typeof google !== 'undefined' && google.accounts) {
+                    console.log('Google 帳號 API 可用');
+                    initializeGoogleSignIn();
+                } else {
+                    console.error('Google 帳號 API 未載入');
+                    showManualLoginOption();
+                }
+            }, 2000);
+        };
+
+        // 初始化 Google 登錄
+        function initializeGoogleSignIn() {
+            try {
+                google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleSignIn
+                });
+                
+                google.accounts.id.renderButton(
+                    document.getElementById('googleSignInButton'),
+                    { theme: "outline", size: "large" }
+                );
+                
+                console.log('Google 登錄按鈕已初始化');
+            } catch (error) {
+                console.error('Google 登錄初始化失敗:', error);
+                showManualLoginOption();
+            }
+        }
+
+        // 顯示手動登錄選項
+        function showManualLoginOption() {
+            const loginCard = document.querySelector('.login-card');
+            loginCard.innerHTML += `
+                <div style="margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px;">
+                    <p style="margin-bottom: 10px; font-size: 14px;">Google 登錄暫時無法使用</p>
+                    <button onclick="simulateLogin()" style="background: #4285f4; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                        模擬登錄（測試用）
+                    </button>
+                </div>
+            `;
+        }
+
+        // 模擬登錄（用於測試）
+        function simulateLogin() {
+            console.log('模擬登錄<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
