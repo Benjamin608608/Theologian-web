@@ -111,6 +111,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            min-height: 48px;
         }
 
         .search-btn:hover:not(:disabled) {
@@ -119,8 +120,17 @@
         }
 
         .search-btn:disabled {
-            opacity: 0.6;
+            opacity: 0.8;
             cursor: not-allowed;
+        }
+
+        .search-btn-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
         .example-questions {
@@ -262,8 +272,8 @@
         .source-item {
             background: #f8f9fa;
             border-left: 4px solid #667eea;
-            padding: 12px 16px;
-            margin-bottom: 12px;
+            padding: 10px 14px;
+            margin-bottom: 10px;
             border-radius: 0 8px 8px 0;
         }
 
@@ -271,13 +281,14 @@
             font-weight: 600;
             color: #333;
             margin-bottom: 4px;
+            font-size: 0.95rem;
         }
 
         .source-quote {
             font-style: italic;
             color: #666;
-            font-size: 0.9rem;
-            line-height: 1.5;
+            font-size: 0.8rem;
+            line-height: 1.4;
         }
 
         .error-message {
@@ -322,13 +333,13 @@
                         <textarea 
                             id="question" 
                             class="search-input" 
-                            placeholder="例如：什麼是救恩？因信稱義如何理解？某段聖經在說什麼？"
+                            placeholder="例如：什麼是救恩？因信稱義是什麼意思？...這段聖經是什麼意思？"
                             required
                         ></textarea>
                     </div>
                     <button type="submit" class="search-btn" id="searchBtn">
-                        <span>🔍</span>
-                        搜尋答案
+                        <span id="searchBtnIcon">🔍</span>
+                        <span id="searchBtnText">搜尋答案</span>
                     </button>
                 </form>
 
@@ -506,8 +517,30 @@
                 this.resultContent.style.display = 'none';
                 this.errorMessage.style.display = 'none';
                 this.loadingState.style.display = 'block';
+                
+                // 更新按鈕狀態
                 this.searchBtn.disabled = true;
+                document.getElementById('searchBtnIcon').innerHTML = '<div class="search-btn-spinner"></div>';
+                document.getElementById('searchBtnText').textContent = '搜尋中...';
+                
                 this.currentLoadingIndex = 0;
+                
+                // 滾動到結果區域，讓標題在手機螢幕頂部
+                setTimeout(() => {
+                    const resultHeader = document.querySelector('.result-header');
+                    if (resultHeader) {
+                        resultHeader.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    } else {
+                        // 如果結果標題還沒出現，滾動到結果容器
+                        this.resultsContainer.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    }
+                }, 100);
             }
 
             startLoadingAnimation() {
@@ -521,7 +554,11 @@
                 if (this.loadingInterval) {
                     clearInterval(this.loadingInterval);
                 }
+                
+                // 恢復按鈕狀態
                 this.searchBtn.disabled = false;
+                document.getElementById('searchBtnIcon').innerHTML = '🔍';
+                document.getElementById('searchBtnText').textContent = '搜尋答案';
             }
 
             showResult(question, response) {
@@ -551,6 +588,20 @@
 
                 this.resultBody.innerHTML = processedAnswer;
                 this.resultContent.style.display = 'flex';
+                
+                // 滾動到結果標題位置，確保在手機螢幕頂部
+                setTimeout(() => {
+                    const resultHeader = document.querySelector('.result-header');
+                    if (resultHeader) {
+                        const headerRect = resultHeader.getBoundingClientRect();
+                        const scrollTop = window.pageYOffset + headerRect.top - 10; // 留一點間距
+                        
+                        window.scrollTo({
+                            top: scrollTop,
+                            behavior: 'smooth'
+                        });
+                    }
+                }, 100);
             }
 
             formatAnswer(text) {
@@ -592,6 +643,14 @@
                 this.loadingState.style.display = 'none';
                 this.errorText.textContent = message;
                 this.errorMessage.style.display = 'block';
+                
+                // 滾動到錯誤訊息
+                setTimeout(() => {
+                    this.errorMessage.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                }, 100);
             }
         }
 
