@@ -4,11 +4,13 @@ const path = require('path');
 const OpenAI = require('openai');
 const session = require('express-session');
 const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// 讓 express-session 支援 proxy (如 Railway/Heroku/Render)
+app.set('trust proxy', 1);
 
 // 初始化 OpenAI 客戶端
 const openai = new OpenAI({
@@ -18,13 +20,13 @@ const openai = new OpenAI({
 // 你的向量資料庫 ID
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_6886f711eda0819189b6c017d6b96d23';
 
-// Session 配置
+// Session 配置（secure: true，適用於 https 雲端平台）
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: true, // Railway/Render/Heroku 上必須 true
     maxAge: 24 * 60 * 60 * 1000 // 24 小時
   }
 }));
@@ -42,23 +44,30 @@ passport.deserializeUser((user, done) => {
   done(null, user);
 });
 
-// Google OAuth 策略
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback"
-  },
-  function(accessToken, refreshToken, profile, cb) {
-    // 這裡可以添加用戶資料庫存儲邏輯
-    const user = {
-      id: profile.id,
-      email: profile.emails[0].value,
-      name: profile.displayName,
-      picture: profile.photos[0].value
-    };
-    return cb(null, user);
-  }
-));
+// 條件性 Google OAuth 配置
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  const GoogleStrategy = require('passport-google-oauth20').Strategy;
+  
+  passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback"
+    },
+    function(accessToken, refreshToken, profile, cb) {
+      // 這裡可以添加用戶資料庫存儲邏輯
+      const user = {
+        id: profile.id,
+        email: profile.emails[0].value,
+        name: profile.displayName,
+        picture: profile.photos[0].value
+      };
+      return cb(null, user);
+    }
+  ));
+} else {
+  console.warn('⚠️  Google OAuth 憑證未設置，登入功能將不可用');
+  console.warn('   請設置 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET 環境變數');
+}
 
 // 中間件設置
 app.use(cors());
@@ -77,18 +86,28 @@ function ensureAuthenticated(req, res, next) {
   });
 }
 
-// 認證路由
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+// 認證路由 - 僅在 Google OAuth 已配置時啟用
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  app.get('/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+  );
 
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  function(req, res) {
-    // 成功登入後重定向到首頁
-    res.redirect('/');
-  }
-);
+  app.get('/auth/google/callback', 
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    function(req, res) {
+      // 成功登入後重定向到首頁
+      res.redirect('/');
+    }
+  );
+} else {
+  // 如果 Google OAuth 未配置，提供錯誤頁面
+  app.get('/auth/google', (req, res) => {
+    res.status(500).json({
+      success: false,
+      error: 'Google OAuth 未配置，請聯繫管理員'
+    });
+  });
+}
 
 app.get('/auth/logout', function(req, res, next) {
   req.logout(function(err) {
@@ -356,7 +375,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    googleOAuth: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   });
 });
 
@@ -366,7 +386,8 @@ app.get('/api/info', (req, res) => {
     name: '神學知識庫 API',
     version: '1.0.0',
     description: '基於 OpenAI 向量搜索的神學問答系統',
-    vectorStoreId: VECTOR_STORE_ID ? 'configured' : 'not configured'
+    vectorStoreId: VECTOR_STORE_ID ? 'configured' : 'not configured',
+    googleOAuth: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   });
 });
 
@@ -411,4 +432,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📊 系統狀態: /api/info`);
   console.log(`💡 向量資料庫 ID: ${VECTOR_STORE_ID ? '已設定' : '未設定'}`);
   console.log(`🔐 Google OAuth: ${process.env.GOOGLE_CLIENT_ID ? '已設定' : '未設定'}`);
+  
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.log(`⚠️  注意: Google OAuth 未配置，登入功能將不可用`);
+    console.log(`   請設置 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET 環境變數`);
+  }
 });
