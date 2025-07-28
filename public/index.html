@@ -282,13 +282,13 @@
             font-style: italic;
             color: #333;
             margin-bottom: 4px;
-            font-size: 0.5rem;
+            font-size: 0.6rem;
         }
 
         .source-quote {
             font-style: italic;
             color: #666;
-            font-size: 0.5rem;
+            font-size: 0.6rem;
             line-height: 1.4;
             padding-left: 8px;
         }
@@ -335,7 +335,7 @@
                         <textarea 
                             id="question" 
                             class="search-input" 
-                            placeholder="例如：什麼是救恩？因信稱義是什麼意思？...這段聖經是在說什麼？"
+                            placeholder="例如：什麼是救恩？因信稱義如何理解？...這段聖經是什麼意思？"
                             required
                         ></textarea>
                     </div>
@@ -608,21 +608,25 @@
 
             formatAnswer(text) {
                 return text
-                    // 處理粗體文字 **text** -> <strong>text</strong>
+                    // 處理三個星號的粗體+斜體 ***text*** -> <strong><em>text</em></strong>
+                    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                    // 處理兩個星號的粗體 **text** -> <strong>text</strong>
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    // 處理斜體文字 *text* -> <em>text</em>
+                    // 處理一個星號的斜體 *text* -> <em>text</em>
                     .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>')
                     // 處理標題（數字開頭的段落）
                     .replace(/^(\d+\.\s+[^：\n]+：?)$/gm, '<h4>$1</h4>')
-                    // 處理段落
+                    // 處理段落分隔
                     .replace(/\n\n+/g, '</p><p>')
                     // 處理單個換行
                     .replace(/\n/g, '<br>')
                     // 包裝成段落
                     .replace(/^(?!<h4>)/, '<p>')
                     .replace(/(?<!<\/h4>)$/, '</p>')
-                    // 清理空段落
-                    .replace(/<p><\/p>/g, '');
+                    // 清理空段落和多餘標記
+                    .replace(/<p><\/p>/g, '')
+                    // 清理剩餘的星號
+                    .replace(/\*+/g, '');
             }
 
             generateSourcesHTML(sources) {
