@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神學知識庫</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            height: fit-content;
+        }
+
+        .search-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #555;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .search-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .example-questions {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e1e5e9;
+        }
+
+        .example-questions h3 {
+            color: #555;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .example-item {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .example-item:hover {
+            background: #f0f4ff;
+            border-color: #667eea;
+            transform: translateX(4px);
+        }
+
+        .results-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .results-container {
+            flex: 1;
+            border: 2px solid #e1e5e9;
+            border-radius: 15px;
+            padding: 1.5rem;
+            background: #fafbfc;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .loading-state {
+            display: none;
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #667eea;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e1e5e9;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #666;
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .result-content {
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .result-header {
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .result-header h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .result-body {
+            flex: 1;
+            padding: 1rem;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e1e5e9;
+            line-height: 1.8;
+        }
+
+        .result-body h4 {
+            color: #667eea;
+            margin: 1.5rem 0 0.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        .result-body p {
+            margin-bottom: 1rem;
+        }
+
+        .citation {
+            background: #e8f2ff;
+            color: #0066cc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .sources-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e1e5e9;
+        }
+
+        .sources-section h4 {
+            color: #555;
+            margin-bottom: 1rem;
+        }
+
+        .source-item {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .source-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .source-quote {
+            font-style: italic;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: #cc0000;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #ffcccc;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .container {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 神學知識庫</h1>
+            <p>探索神學家的智慧，尋找信仰的答案</p>
+        </div>
+
+        <div class="main-content">
+            <div class="search-panel">
+                <form class="search-form" id="searchForm">
+                    <div class="form-group">
+                        <label for="question">請輸入您的問題：</label>
+                        <textarea 
+                            id="question" 
+                            class="search-input" 
+                            placeholder="例如：什麼是救恩？加爾文的預定論是什麼？路德的因信稱義如何理解？"
+                            required
+                        ></textarea>
+                    </div>
+                    <button type="submit" class="search-btn" id="searchBtn">
+                        <span>🔍</span>
+                        搜尋答案
+                    </button>
+                </form>
+
+                <div class="example-questions">
+                    <h3>💡 範例問題</h3>
+                    <div class="example-item" data-question="什麼是三位一體？">什麼是三位一體？</div>
+                    <div class="example-item" data-question="路德的因信稱義是什麼意思？">路德的因信稱義是什麼意思？</div>
+                    <div class="example-item" data-question="加爾文的預定論如何理解？">加爾文的預定論如何理解？</div>
+                    <div class="example-item" data-question="什麼是原罪？">什麼是原罪？</div>
+                    <div class="example-item" data-question="教會的本質是什麼？">教會的本質是什麼？</div>
+                </div>
+            </div>
+
+            <div class="results-panel">
+                <div class="results-container" id="resultsContainer">
+                    <div class="empty-state" id="emptyState">
+                        <div class="icon">📖</div>
+                        <h3>歡迎使用神學知識庫</h3>
+                        <p>請在左側輸入您的問題，或點擊範例問題開始探索</p>
+                    </div>
+
+                    <div class="loading-state" id="loadingState">
+                        <div class="loading-spinner"></div>
+                        <h3 id="loadingText">🤔 讓我查找相關資料...</h3>
+                    </div>
+
+                    <div class="result-content" id="resultContent">
+                        <div class="result-header">
+                            <h3>📋 查詢結果</h3>
+                            <p id="questionText"></p>
+                        </div>
+                        <div class="result-body" id="resultBody">
+                        </div>
+                    </div>
+
+                    <div class="error-message" id="errorMessage">
+                        <strong>❌ 發生錯誤</strong>
+                        <p id="errorText"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class TheologySearchApp {
+            constructor() {
+                this.initElements();
+                this.bindEvents();
+                this.loadingMessages = [
+                    '🤔 讓我查找相關資料...',
+                    '🔍 深度搜索資料庫中...',
+                    '📚 分析文件內容中...',
+                    '✍️ 整理回答中...',
+                    '⏳ 即將完成...'
+                ];
+                this.currentLoadingIndex = 0;
+            }
+
+            initElements() {
+                this.form = document.getElementById('searchForm');
+                this.questionInput = document.getElementById('question');
+                this.searchBtn = document.getElementById('searchBtn');
+                this.resultsContainer = document.getElementById('resultsContainer');
+                this.emptyState = document.getElementById('emptyState');
+                this.loadingState = document.getElementById('loadingState');
+                this.resultContent = document.getElementById('resultContent');
+                this.errorMessage = document.getElementById('errorMessage');
+                this.questionText = document.getElementById('questionText');
+                this.resultBody = document.getElementById('resultBody');
+                this.loadingText = document.getElementById('loadingText');
+                this.errorText = document.getElementById('errorText');
+                this.exampleItems = document.querySelectorAll('.example-item');
+            }
+
+            bindEvents() {
+                this.form.addEventListener('submit', (e) => this.handleSearch(e));
+                
+                this.exampleItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        const question = item.getAttribute('data-question');
+                        this.questionInput.value = question;
+                        this.handleSearch(new Event('submit'));
+                    });
+                });
+            }
+
+            async handleSearch(e) {
+                e.preventDefault();
+                
+                const question = this.questionInput.value.trim();
+                if (!question) return;
+
+                this.showLoading();
+                this.startLoadingAnimation();
+
+                try {
+                    // 模擬 API 調用 - 這裡需要替換為實際的後端 API
+                    const response = await this.callSearchAPI(question);
+                    this.showResult(question, response);
+                } catch (error) {
+                    this.showError(error.message);
+                } finally {
+                    this.stopLoadingAnimation();
+                }
+            }
+
+            async callSearchAPI(question) {
+                try {
+                    const response = await fetch('/api/search', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ question: question })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        throw new Error(data.error || '查詢失敗');
+                    }
+
+                    return data.data;
+                } catch (error) {
+                    // 處理網路錯誤
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        throw new Error('無法連接到服務器，請檢查網路連接');
+                    }
+                    throw error;
+                }
+            }
+
+            generateMockAnswer(question) {
+                // 模擬回答生成
+                return `關於「${question}」這個問題，根據神學知識庫的資料：
+
+**主要觀點：**
+這是一個深刻的神學問題，涉及到基督教信仰的核心概念。根據歷代神學家的研究和解釋[1][2]，我們可以從以下幾個角度來理解：
+
+**歷史發展：**
+從早期教父時代開始，這個議題就受到廣泛討論。特別是在宗教改革時期，路德和加爾文等神學家對此有重要的貢獻[3]。
+
+**實際應用：**
+在現代基督徒生活中，這個概念幫助我們更好地理解信仰的本質，並指導我們的日常行為和屬靈成長[1]。
+
+這個回答基於神學知識庫中多位著名神學家的著作和研究。`;
+            }
+
+            generateMockSources() {
+                return [
+                    {
+                        index: 1,
+                        fileName: '系統神學 - 路易斯·貝科夫',
+                        quote: '神學是對神的系統性研究，旨在幫助信徒更深入地理解神的本性和作為...'
+                    },
+                    {
+                        index: 2,
+                        fileName: '基督教教義史 - 約翰·凱利',
+                        quote: '教父時代的神學發展為後世奠定了重要的理論基礎...'
+                    },
+                    {
+                        index: 3,
+                        fileName: '加爾文神學要義',
+                        quote: '真正的智慧主要包含兩部分：認識神和認識自己...'
+                    }
+                ];
+            }
+
+            showLoading() {
+                this.emptyState.style.display = 'none';
+                this.resultContent.style.display = 'none';
+                this.errorMessage.style.display = 'none';
+                this.loadingState.style.display = 'block';
+                this.searchBtn.disabled = true;
+                this.currentLoadingIndex = 0;
+            }
+
+            startLoadingAnimation() {
+                this.loadingInterval = setInterval(() => {
+                    this.currentLoadingIndex = (this.currentLoadingIndex + 1) % this.loadingMessages.length;
+                    this.loadingText.textContent = this.loadingMessages[this.currentLoadingIndex];
+                }, 2000);
+            }
+
+            stopLoadingAnimation() {
+                if (this.loadingInterval) {
+                    clearInterval(this.loadingInterval);
+                }
+                this.searchBtn.disabled = false;
+            }
+
+            showResult(question, response) {
+                this.loadingState.style.display = 'none';
+                this.questionText.textContent = question;
+                
+                // 處理回答內容
+                let processedAnswer = response.answer;
+                
+                // 處理引用標記
+                if (response.sources && response.sources.length > 0) {
+                    response.sources.forEach(source => {
+                        const regex = new RegExp(`\\[${source.index}\\]`, 'g');
+                        processedAnswer = processedAnswer.replace(regex, 
+                            `<span class="citation">[${source.index}]</span>`
+                        );
+                    });
+                }
+
+                // 處理格式化
+                processedAnswer = this.formatAnswer(processedAnswer);
+                
+                // 添加來源資訊
+                if (response.sources && response.sources.length > 0) {
+                    processedAnswer += this.generateSourcesHTML(response.sources);
+                }
+
+                this.resultBody.innerHTML = processedAnswer;
+                this.resultContent.style.display = 'flex';
+            }
+
+            formatAnswer(text) {
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<h4>$1</h4>')
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/^/, '<p>')
+                    .replace(/$/, '</p>');
+            }
+
+            generateSourcesHTML(sources) {
+                let sourcesHTML = '<div class="sources-section"><h4>📚 引用來源：</h4>';
+                
+                sources.forEach(source => {
+                    sourcesHTML += `
+                        <div class="source-item">
+                            <div class="source-title">[${source.index}] ${source.fileName}</div>
+                            <div class="source-quote">"${source.quote}"</div>
+                        </div>
+                    `;
+                });
+                
+                sourcesHTML += '</div>';
+                return sourcesHTML;
+            }
+
+            showError(message) {
+                this.loadingState.style.display = 'none';
+                this.errorText.textContent = message;
+                this.errorMessage.style.display = 'block';
+            }
+        }
+
+        // 初始化應用
+        document.addEventListener('DOMContentLoaded', () => {
+            new TheologySearchApp();
+        });
+    </script>
+</body>
+</html>
