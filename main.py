@@ -55,11 +55,11 @@ question_cache = {}
 
 # 配置參數
 class Config:
-    MODEL_NAME = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"  # 多語言模型
-    VECTOR_DIM = 768
+    EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI 1536維模型
+    VECTOR_DIM = 1536  # 升級到1536維
     INDEX_TYPE = "IVF_PQ"  # 高壓縮比索引
     NLIST = 1024  # 聚類中心數量
-    M = 96  # PQ子向量數量
+    M = 128  # PQ子向量數量 (調整為1536維的合適值)
     NBITS = 8  # 位數
     CHUNK_SIZE = 512  # 文檔分塊大小
     OVERLAP = 50  # 重疊字符數
