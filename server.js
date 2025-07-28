@@ -20,77 +20,6 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 請求限制和排隊系統
-const requestQueue = [];
-const activeRequests = new Set();
-const MAX_CONCURRENT_REQUESTS = 3; // 最多同時處理3個請求
-const REQUEST_TIMEOUT = 60000; // 60秒超時
-
-// 簡單的記憶體快取
-const cache = new Map();
-const CACHE_DURATION = 30 * 60 * 1000; // 30分鐘快取
-
-// IP 速率限制
-const ipRequestCount = new Map();
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15分鐘窗口
-const MAX_REQUESTS_PER_IP = 10; // 每個IP每15分鐘最多10次請求
-
-// 清理過期的 IP 計數
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, data] of ipRequestCount.entries()) {
-    if (now - data.firstRequest > RATE_LIMIT_WINDOW) {
-      ipRequestCount.delete(ip);
-    }
-  }
-}, 5 * 60 * 1000); // 每5分鐘清理一次
-
-// 清理過期快取
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, data] of cache.entries()) {
-    if (now - data.timestamp > CACHE_DURATION) {
-      cache.delete(key);
-    }
-  }
-}, 10 * 60 * 1000); // 每10分鐘清理一次
-
-// 速率限制中間件
-function rateLimitMiddleware(req, res, next) {
-  const clientIP = req.ip || req.connection.remoteAddress;
-  const now = Date.now();
-  
-  if (!ipRequestCount.has(clientIP)) {
-    ipRequestCount.set(clientIP, {
-      count: 1,
-      firstRequest: now
-    });
-  } else {
-    const userData = ipRequestCount.get(clientIP);
-    if (now - userData.firstRequest > RATE_LIMIT_WINDOW) {
-      // 重置計數
-      userData.count = 1;
-      userData.firstRequest = now;
-    } else {
-      userData.count++;
-      if (userData.count > MAX_REQUESTS_PER_IP) {
-        return res.status(429).json({
-          success: false,
-          error: '請求過於頻繁，請稍後再試',
-          retryAfter: Math.ceil((RATE_LIMIT_WINDOW - (now - userData.firstRequest)) / 1000)
-        });
-      }
-    }
-  }
-  
-  next();
-}
-
-// 生成快取鍵
-function generateCacheKey(question) {
-  return question.toLowerCase().trim().replace(/\s+/g, ' ');
-}
-
 // 獲取文件名稱的函數
 async function getFileName(fileId) {
   try {
@@ -104,7 +33,7 @@ async function getFileName(fileId) {
   }
 }
 
-// 處理引用標記的函數
+// 處理引用標記並轉換為網頁格式的函數
 async function processAnnotationsInText(text, annotations) {
   let processedText = text;
   const sourceMap = new Map();
@@ -139,7 +68,7 @@ async function processAnnotationsInText(text, annotations) {
       }
     }
     
-    // 清理格式
+    // 清理格式問題並改善排版
     processedText = processedText
       .replace(/【[^】]*】/g, '')
       .replace(/†[^†\s]*†?/g, '')
@@ -182,8 +111,10 @@ function createSourceList(sourceMap) {
   }));
 }
 
-// 處理請求的核心函數
-async function processSearchRequest(question) {
+// 處理搜索請求的核心函數
+async function processSearchRequest(question, user = null) {
+  console.log(`處理搜索請求: ${question}${user ? ` (用戶: ${user.email})` : ''}`);
+  
   const assistant = await openai.beta.assistants.create({
     model: 'gpt-4o-mini',
     name: 'Theology RAG Assistant',
@@ -274,56 +205,15 @@ async function processSearchRequest(question) {
     question: question,
     answer: botAnswer,
     sources: sources,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    user: user ? { email: user.email, name: user.name } : null
   };
 }
 
-// 排隊處理請求
-async function queueRequest(question, res) {
-  return new Promise((resolve, reject) => {
-    const request = {
-      question,
-      resolve,
-      reject,
-      timestamp: Date.now(),
-      timeout: setTimeout(() => {
-        reject(new Error('請求超時，請稍後再試'));
-      }, REQUEST_TIMEOUT)
-    };
-    
-    requestQueue.push(request);
-    processQueue();
-  });
-}
-
-// 處理請求佇列
-async function processQueue() {
-  if (activeRequests.size >= MAX_CONCURRENT_REQUESTS || requestQueue.length === 0) {
-    return;
-  }
-  
-  const request = requestQueue.shift();
-  if (!request) return;
-  
-  activeRequests.add(request);
-  
-  try {
-    clearTimeout(request.timeout);
-    const result = await processSearchRequest(request.question);
-    request.resolve(result);
-  } catch (error) {
-    request.reject(error);
-  } finally {
-    activeRequests.delete(request);
-    // 繼續處理佇列
-    setImmediate(processQueue);
-  }
-}
-
 // 主要搜索 API 端點
-app.post('/api/search', rateLimitMiddleware, async (req, res) => {
+app.post('/api/search', async (req, res) => {
   try {
-    const { question } = req.body;
+    const { question, user } = req.body;
 
     if (!question || !question.trim()) {
       return res.status(400).json({
@@ -333,44 +223,10 @@ app.post('/api/search', rateLimitMiddleware, async (req, res) => {
     }
 
     const trimmedQuestion = question.trim();
-    const cacheKey = generateCacheKey(trimmedQuestion);
-    
-    // 檢查快取
-    if (cache.has(cacheKey)) {
-      const cachedData = cache.get(cacheKey);
-      console.log(`快取命中: ${trimmedQuestion}`);
-      return res.json({
-        success: true,
-        data: {
-          ...cachedData.result,
-          cached: true,
-          cacheTime: cachedData.timestamp
-        }
-      });
-    }
+    console.log(`收到搜索請求: ${trimmedQuestion}${user ? ` (用戶: ${user.email})` : ''}`);
 
-    console.log(`新請求: ${trimmedQuestion}, 佇列長度: ${requestQueue.length}, 處理中: ${activeRequests.size}`);
-
-    // 返回佇列狀態
-    const queuePosition = requestQueue.length + 1;
-    if (queuePosition > 1) {
-      res.status(202).json({
-        success: false,
-        queued: true,
-        position: queuePosition,
-        estimatedWaitTime: queuePosition * 20, // 估計每個請求20秒
-        message: `您的請求已加入佇列，預計等待時間 ${queuePosition * 20} 秒`
-      });
-    }
-
-    // 加入佇列處理
-    const result = await queueRequest(trimmedQuestion);
-    
-    // 儲存到快取
-    cache.set(cacheKey, {
-      result,
-      timestamp: Date.now()
-    });
+    // 處理搜索請求
+    const result = await processSearchRequest(trimmedQuestion, user);
 
     res.json({
       success: true,
@@ -382,10 +238,12 @@ app.post('/api/search', rateLimitMiddleware, async (req, res) => {
     
     let errorMessage = '很抱歉，處理您的問題時發生錯誤，請稍後再試。';
     
-    if (error.message.includes('請求超時')) {
-      errorMessage = '請求處理時間過長，請簡化問題或稍後再試。';
+    if (error.message.includes('查詢時間過長') || error.message.includes('timeout')) {
+      errorMessage = '查詢時間過長，請嘗試簡化您的問題或稍後再試。';
     } else if (error.message.includes('rate limit')) {
       errorMessage = '目前請求過多，請稍後再試。';
+    } else if (error.message.includes('Assistant run failed')) {
+      errorMessage = '系統處理問題，請稍後再試或聯繫管理員。';
     }
     
     res.status(500).json({
@@ -396,39 +254,31 @@ app.post('/api/search', rateLimitMiddleware, async (req, res) => {
   }
 });
 
-// 系統狀態 API
-app.get('/api/status', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      queueLength: requestQueue.length,
-      activeRequests: activeRequests.size,
-      cacheSize: cache.size,
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString()
-    }
-  });
-});
-
 // 健康檢查端點
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    queueStatus: {
-      waiting: requestQueue.length,
-      processing: activeRequests.size
-    }
+    uptime: process.uptime()
   });
 });
 
-// 服務靜態文件
+// 獲取系統資訊端點
+app.get('/api/info', (req, res) => {
+  res.json({
+    name: '神學知識庫 API',
+    version: '1.0.0',
+    description: '基於 OpenAI 向量搜索的神學問答系統',
+    vectorStoreId: VECTOR_STORE_ID ? 'configured' : 'not configured'
+  });
+});
+
+// 服務靜態文件（前端）
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 錯誤處理
+// 錯誤處理中間件
 app.use((error, req, res, next) => {
   console.error('未處理的錯誤:', error);
   res.status(500).json({
@@ -458,11 +308,9 @@ process.on('uncaughtException', (error) => {
 
 // 啟動服務器
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 神學知識庫服務器已啟動 (優化版)`);
+  console.log(`🚀 神學知識庫服務器已啟動`);
   console.log(`📍 端口: ${PORT}`);
   console.log(`🔍 API 健康檢查: /api/health`);
-  console.log(`📊 系統狀態: /api/status`);
-  console.log(`⚡ 最大並發請求數: ${MAX_CONCURRENT_REQUESTS}`);
-  console.log(`🕒 請求超時時間: ${REQUEST_TIMEOUT/1000} 秒`);
-  console.log(`💾 快取持續時間: ${CACHE_DURATION/60000} 分鐘`);
+  console.log(`📊 系統狀態: /api/info`);
+  console.log(`💡 向量資料庫 ID: ${VECTOR_STORE_ID ? '已設定' : '未設定'}`);
 });
