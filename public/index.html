@@ -32,6 +32,7 @@
             text-align: center;
             margin-bottom: 2rem;
             color: white;
+            position: relative;
         }
 
         .header h1 {
@@ -45,6 +46,120 @@
             opacity: 0.9;
         }
 
+        .user-info {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+        }
+
+        .user-details {
+            color: white;
+            text-align: left;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .user-email {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .login-container {
+            display: none;
+            text-align: center;
+            background: white;
+            border-radius: 20px;
+            padding: 3rem 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: 2rem auto;
+        }
+
+        .login-container.show {
+            display: block;
+        }
+
+        .login-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+
+        .login-title {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .login-description {
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .google-login-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .google-login-btn:hover {
+            background: #3367d6;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(66, 133, 244, 0.3);
+        }
+
+        .google-icon {
+            width: 20px;
+            height: 20px;
+        }
+
         .main-content {
             flex: 1;
             display: grid;
@@ -54,6 +169,10 @@
             border-radius: 20px;
             padding: 2rem;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-content.hidden {
+            display: none;
         }
 
         .search-panel {
@@ -317,6 +436,12 @@
             .container {
                 padding: 10px;
             }
+
+            .user-info {
+                position: static;
+                margin-top: 1rem;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -325,9 +450,40 @@
         <div class="header">
             <h1>📚 神學知識庫</h1>
             <p>探索神學家的智慧，尋找信仰的答案</p>
+            
+            <!-- 用戶資訊區域 -->
+            <div class="user-info" id="userInfo" style="display: none;">
+                <img class="user-avatar" id="userAvatar" src="" alt="用戶頭像">
+                <div class="user-details">
+                    <div class="user-name" id="userName"></div>
+                    <div class="user-email" id="userEmail"></div>
+                </div>
+                <button class="logout-btn" onclick="logout()">登出</button>
+            </div>
         </div>
 
-        <div class="main-content">
+        <!-- 登入容器 -->
+        <div class="login-container" id="loginContainer">
+            <div class="login-icon">🔐</div>
+            <h2 class="login-title">歡迎使用神學知識庫</h2>
+            <p class="login-description">
+                為了提供更好的服務體驗，請使用 Google 帳號登入後開始使用。
+                <br><br>
+                您的個人資訊將受到保護，僅用於改善服務品質。
+            </p>
+            <button class="google-login-btn" onclick="login()">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                使用 Google 登入
+            </button>
+        </div>
+
+        <!-- 主要內容區域 -->
+        <div class="main-content" id="mainContent">
             <div class="search-panel">
                 <form class="search-form" id="searchForm">
                     <div class="form-group">
@@ -399,6 +555,7 @@
                     '⏳ 即將完成...'
                 ];
                 this.currentLoadingIndex = 0;
+                this.checkAuthStatus();
             }
 
             initElements() {
@@ -415,6 +572,12 @@
                 this.loadingText = document.getElementById('loadingText');
                 this.errorText = document.getElementById('errorText');
                 this.exampleItems = document.querySelectorAll('.example-item');
+                this.loginContainer = document.getElementById('loginContainer');
+                this.mainContent = document.getElementById('mainContent');
+                this.userInfo = document.getElementById('userInfo');
+                this.userAvatar = document.getElementById('userAvatar');
+                this.userName = document.getElementById('userName');
+                this.userEmail = document.getElementById('userEmail');
             }
 
             bindEvents() {
@@ -429,6 +592,39 @@
                 });
             }
 
+            async checkAuthStatus() {
+                try {
+                    const response = await fetch('/api/user');
+                    const data = await response.json();
+                    
+                    if (data.success && data.user) {
+                        this.showAuthenticatedUI(data.user);
+                    } else {
+                        this.showLoginUI();
+                    }
+                } catch (error) {
+                    console.error('檢查認證狀態失敗:', error);
+                    this.showLoginUI();
+                }
+            }
+
+            showAuthenticatedUI(user) {
+                this.loginContainer.classList.remove('show');
+                this.mainContent.classList.remove('hidden');
+                
+                // 顯示用戶資訊
+                this.userInfo.style.display = 'flex';
+                this.userAvatar.src = user.picture;
+                this.userName.textContent = user.name;
+                this.userEmail.textContent = user.email;
+            }
+
+            showLoginUI() {
+                this.loginContainer.classList.add('show');
+                this.mainContent.classList.add('hidden');
+                this.userInfo.style.display = 'none';
+            }
+
             async handleSearch(e) {
                 e.preventDefault();
                 
@@ -439,11 +635,14 @@
                 this.startLoadingAnimation();
 
                 try {
-                    // 模擬 API 調用 - 這裡需要替換為實際的後端 API
                     const response = await this.callSearchAPI(question);
                     this.showResult(question, response);
                 } catch (error) {
-                    this.showError(error.message);
+                    if (error.requiresAuth) {
+                        this.showLoginUI();
+                    } else {
+                        this.showError(error.message);
+                    }
                 } finally {
                     this.stopLoadingAnimation();
                 }
@@ -461,6 +660,13 @@
 
                     if (!response.ok) {
                         const errorData = await response.json().catch(() => ({}));
+                        
+                        if (response.status === 401 && errorData.requiresAuth) {
+                            const authError = new Error('需要登入才能使用此功能');
+                            authError.requiresAuth = true;
+                            throw authError;
+                        }
+                        
                         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                     }
 
@@ -667,6 +873,15 @@
                     });
                 }, 100);
             }
+        }
+
+        // 全局函數
+        function login() {
+            window.location.href = '/auth/google';
+        }
+
+        function logout() {
+            window.location.href = '/auth/logout';
         }
 
         // 初始化應用

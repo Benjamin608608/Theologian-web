@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const OpenAI = require('openai');
+const session = require('express-session');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
 
 const app = express();
@@ -15,10 +18,104 @@ const openai = new OpenAI({
 // 你的向量資料庫 ID
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_6886f711eda0819189b6c017d6b96d23';
 
+// Session 配置
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 小時
+  }
+}));
+
+// Passport 配置
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport 序列化
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+// Google OAuth 策略
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    // 這裡可以添加用戶資料庫存儲邏輯
+    const user = {
+      id: profile.id,
+      email: profile.emails[0].value,
+      name: profile.displayName,
+      picture: profile.photos[0].value
+    };
+    return cb(null, user);
+  }
+));
+
 // 中間件設置
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 認證中間件
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ 
+    success: false, 
+    error: '需要登入才能使用此功能',
+    requiresAuth: true 
+  });
+}
+
+// 認證路由
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  function(req, res) {
+    // 成功登入後重定向到首頁
+    res.redirect('/');
+  }
+);
+
+app.get('/auth/logout', function(req, res, next) {
+  req.logout(function(err) {
+    if (err) { return next(err); }
+    res.redirect('/');
+  });
+});
+
+// 獲取用戶資訊
+app.get('/api/user', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({
+      success: true,
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        picture: req.user.picture
+      }
+    });
+  } else {
+    res.json({
+      success: false,
+      user: null
+    });
+  }
+});
 
 // 獲取文件名稱的函數
 async function getFileName(fileId) {
@@ -210,10 +307,10 @@ async function processSearchRequest(question, user = null) {
   };
 }
 
-// 主要搜索 API 端點
-app.post('/api/search', async (req, res) => {
+// 主要搜索 API 端點 - 需要認證
+app.post('/api/search', ensureAuthenticated, async (req, res) => {
   try {
-    const { question, user } = req.body;
+    const { question } = req.body;
 
     if (!question || !question.trim()) {
       return res.status(400).json({
@@ -223,10 +320,10 @@ app.post('/api/search', async (req, res) => {
     }
 
     const trimmedQuestion = question.trim();
-    console.log(`收到搜索請求: ${trimmedQuestion}${user ? ` (用戶: ${user.email})` : ''}`);
+    console.log(`收到搜索請求: ${trimmedQuestion} (用戶: ${req.user.email})`);
 
     // 處理搜索請求
-    const result = await processSearchRequest(trimmedQuestion, user);
+    const result = await processSearchRequest(trimmedQuestion, req.user);
 
     res.json({
       success: true,
@@ -313,4 +410,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔍 API 健康檢查: /api/health`);
   console.log(`📊 系統狀態: /api/info`);
   console.log(`💡 向量資料庫 ID: ${VECTOR_STORE_ID ? '已設定' : '未設定'}`);
+  console.log(`🔐 Google OAuth: ${process.env.GOOGLE_CLIENT_ID ? '已設定' : '未設定'}`);
 });
