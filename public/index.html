@@ -16,23 +16,16 @@
       align-items: center;
       justify-content: center;
     }
-    .login-card {
+    .container {
       background: white;
       padding: 2rem;
       border-radius: 20px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
       text-align: center;
-      max-width: 400px;
+      max-width: 600px;
       width: 90%;
     }
-    .login-card h2 {
-      margin-bottom: 1rem;
-    }
-    .login-card p {
-      margin-bottom: 2rem;
-      color: #555;
-    }
-    .google-signin-btn {
+    .google-signin-btn, .search-btn {
       background: #4285f4;
       color: white;
       border: none;
@@ -40,10 +33,7 @@
       border-radius: 8px;
       font-size: 1rem;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+      margin-top: 1rem;
     }
     .google-icon {
       background: white;
@@ -52,71 +42,136 @@
       width: 20px;
       height: 20px;
       border-radius: 2px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    .hidden { display: none; }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 1rem;
+      font-size: 1rem;
+      margin-top: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .result {
+      margin-top: 1.5rem;
+      text-align: left;
+      background: #f9f9f9;
+      padding: 1rem;
+      border-radius: 10px;
+    }
+    .user-info {
+      margin-bottom: 1rem;
+    }
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      vertical-align: middle;
     }
   </style>
 </head>
 <body>
-  <div class="login-card">
-    <h2>🔐 歡迎使用神學知識庫</h2>
-    <p>為了提供更好的服務體驗，請使用 Google 帳號登錄以開始探索神學智慧。</p>
-    <div id="googleSignInButton"></div>
-    <br />
-    <button class="google-signin-btn" onclick="simulateLogin()">
-      <div class="google-icon">G</div>
-      模擬登入（測試用）
-    </button>
+  <div class="container">
+    <div id="loginSection">
+      <h2>🔐 歡迎使用神學知識庫</h2>
+      <p>請使用 Google 帳號登入以開始探索神學智慧。</p>
+      <div id="googleSignInButton"></div>
+      <button class="google-signin-btn" onclick="simulateLogin()">
+        <span class="google-icon">G</span>
+        模擬登入（測試用）
+      </button>
+    </div>
+
+    <div id="appSection" class="hidden">
+      <div class="user-info" id="userProfile"></div>
+      <textarea id="questionInput" placeholder="請輸入神學問題..."></textarea>
+      <button class="search-btn" onclick="submitQuestion()">搜尋答案</button>
+      <div class="result" id="searchResult"></div>
+    </div>
   </div>
 
   <script>
     const GOOGLE_CLIENT_ID = '819177680816-qhqs26nalisihdnducd35so1g4ai66rv.apps.googleusercontent.com';
+    let currentUser = null;
 
     window.onload = function () {
-      console.log('頁面載入完成');
-
       setTimeout(() => {
         if (typeof google !== 'undefined' && google.accounts) {
-          console.log('Google 帳號 API 可用');
-          initializeGoogleSignIn();
+          google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleSignIn
+          });
+          google.accounts.id.renderButton(
+            document.getElementById('googleSignInButton'),
+            { theme: 'outline', size: 'large' }
+          );
         } else {
-          console.error('Google API 未正確載入');
-          showManualLoginOption();
+          alert('Google 登入載入失敗，請使用模擬登入');
         }
-      }, 1500);
+      }, 1000);
     };
 
-    function initializeGoogleSignIn() {
-      google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleSignIn
-      });
-      google.accounts.id.renderButton(
-        document.getElementById('googleSignInButton'),
-        { theme: 'outline', size: 'large' }
-      );
-    }
-
     function handleSignIn(response) {
-      console.log('登入成功:', response);
-      // 可在此傳送 token 到後端驗證登入身份
-    }
-
-    function showManualLoginOption() {
-      const card = document.querySelector('.login-card');
-      const notice = document.createElement('div');
-      notice.innerHTML = `
-        <div style="margin-top: 20px; color: #cc0000;">
-          Google 登入無法使用，請使用模擬登入測試
-        </div>
-      `;
-      card.appendChild(notice);
+      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+      currentUser = {
+        name: payload.name,
+        email: payload.email,
+        picture: payload.picture
+      };
+      showMainApp();
     }
 
     function simulateLogin() {
-      console.log('模擬登入成功');
-      alert('模擬登入成功！(實際部署請用 Google 登入)');
+      currentUser = {
+        name: '測試用戶',
+        email: 'test@example.com',
+        picture: 'https://via.placeholder.com/40'
+      };
+      showMainApp();
+    }
+
+    function showMainApp() {
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('appSection').classList.remove('hidden');
+      document.getElementById('userProfile').innerHTML = `
+        <img class="user-avatar" src="${currentUser.picture}" />
+        ${currentUser.name} (${currentUser.email})
+      `;
+    }
+
+    async function submitQuestion() {
+      const question = document.getElementById('questionInput').value.trim();
+      if (!question) return alert('請輸入問題');
+
+      const resBox = document.getElementById('searchResult');
+      resBox.innerHTML = '⌛ 請稍候...';
+
+      try {
+        const res = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, user: currentUser })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          resBox.innerHTML = `<div><strong>🔎 答案：</strong><br>${data.data.answer.replace(/\n/g, '<br>')}</div>`;
+          if (data.data.sources.length > 0) {
+            resBox.innerHTML += '<br><strong>📚 來源：</strong><ul>' +
+              data.data.sources.map(s => `<li>${s.fileName}：${s.quote}</li>`).join('') + '</ul>';
+          }
+        } else {
+          resBox.innerHTML = '❌ ' + (data.error || '發生未知錯誤');
+        }
+      } catch (err) {
+        console.error(err);
+        resBox.innerHTML = '❌ 無法連接伺服器';
+      }
     }
   </script>
 </body>
