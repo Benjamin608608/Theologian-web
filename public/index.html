@@ -447,6 +447,17 @@
 </head>
 <body>
     <div class="container">
+        <!-- 新增導覽列 -->
+        <nav class="navbar" style="display:flex;gap:2rem;align-items:center;margin-bottom:1.5rem;">
+            <a href="/" style="font-weight:600;font-size:1.1rem;color:#667eea;text-decoration:none;">首頁</a>
+            <a href="#" id="catalogNav" style="font-weight:600;font-size:1.1rem;color:#764ba2;text-decoration:none;">作品目錄</a>
+        </nav>
+        <!-- 作品目錄頁面 -->
+        <div id="catalogPage" style="display:none;">
+            <h2 style="margin-bottom:1rem;">📚 作品目錄</h2>
+            <input id="catalogSearch" type="text" placeholder="搜尋作者或作品..." style="width:100%;padding:10px 16px;border-radius:8px;border:1px solid #ccc;margin-bottom:1.5rem;font-size:1rem;">
+            <div id="catalogList"></div>
+        </div>
         <div class="header">
             <h1>📚 神學知識庫</h1>
             <p>探索神學家的智慧，尋找信仰的答案</p>
@@ -887,6 +898,81 @@
         // 初始化應用
         document.addEventListener('DOMContentLoaded', () => {
             new TheologySearchApp();
+        });
+
+        // 作品目錄功能
+        const catalogNav = document.getElementById('catalogNav');
+        const catalogPage = document.getElementById('catalogPage');
+        const mainContent = document.getElementById('mainContent');
+        const catalogList = document.getElementById('catalogList');
+        const catalogSearch = document.getElementById('catalogSearch');
+        let catalogData = [];
+
+        catalogNav.addEventListener('click', (e) => {
+            e.preventDefault();
+            mainContent.style.display = 'none';
+            catalogPage.style.display = 'block';
+            if (catalogData.length === 0) loadCatalog();
+        });
+        document.querySelector('a[href="/"]').addEventListener('click', (e) => {
+            e.preventDefault();
+            catalogPage.style.display = 'none';
+            mainContent.style.display = '';
+        });
+
+        async function loadCatalog() {
+            catalogList.innerHTML = '載入中...';
+            try {
+                const res = await fetch('/api/catalog');
+                catalogData = await res.json();
+                renderCatalog(catalogData);
+            } catch {
+                catalogList.innerHTML = '<span style="color:red;">無法載入作品目錄</span>';
+            }
+        }
+
+        function renderCatalog(data) {
+            if (!data.length) {
+                catalogList.innerHTML = '<span style="color:#888;">查無資料</span>';
+                return;
+            }
+            let html = '';
+            data.forEach((author, idx) => {
+                html += `<div class="catalog-author" style="margin-bottom:1.2rem;">
+                    <div class="catalog-author-name" style="font-weight:600;font-size:1.1rem;cursor:pointer;color:#333;" onclick="toggleWorks(${idx})">
+                        <span id="arrow${idx}">▶</span> ${author.author}
+                    </div>
+                    <ul id="works${idx}" style="display:none;margin-left:1.5rem;margin-top:0.5rem;">
+                        ${author.works.map(w => `<li style='margin-bottom:2px;color:#555;'>${w}</li>`).join('')}
+                    </ul>
+                </div>`;
+            });
+            catalogList.innerHTML = html;
+        }
+
+        window.toggleWorks = function(idx) {
+            const ul = document.getElementById('works'+idx);
+            const arrow = document.getElementById('arrow'+idx);
+            if (ul.style.display === 'none') {
+                ul.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                ul.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
+
+        catalogSearch.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            if (!q) {
+                renderCatalog(catalogData);
+                return;
+            }
+            const filtered = catalogData.filter(a =>
+                a.author.toLowerCase().includes(q) ||
+                a.works.some(w => w.toLowerCase().includes(q))
+            );
+            renderCatalog(filtered);
         });
     </script>
 </body>

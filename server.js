@@ -6,6 +6,7 @@ const session = require('express-session');
 const passport = require('passport');
 require('dotenv').config();
 const { MongoClient } = require('mongodb');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -396,6 +397,17 @@ app.post('/api/search', ensureAuthenticated, async (req, res) => {
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+});
+
+// 作品目錄 API
+app.get('/api/catalog', (req, res) => {
+  try {
+    const catalog = fs.readFileSync(path.join(__dirname, 'public', 'ccel_catalog.json'), 'utf8');
+    res.setHeader('Content-Type', 'application/json');
+    res.send(catalog);
+  } catch (err) {
+    res.status(500).json({ success: false, error: '無法讀取作品目錄' });
   }
 });
 
