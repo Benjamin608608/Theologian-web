@@ -3,13 +3,16 @@
   const GOOGLE_CLIENT_ID = '819177680816-qhqs26nalisihdnducd35so1g4ai66rv.apps.googleusercontent.com';
   let currentUser = null;
 
-  window.onload = function () {
-    document.querySelector('.main-content').style.display = 'none';
+  document.addEventListener('DOMContentLoaded', () => {
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.style.display = 'none';
     renderGoogleLogin();
-  };
+  });
 
   function renderGoogleLogin() {
     const header = document.querySelector('.header');
+    if (!header) return;
+
     const loginBox = document.createElement('div');
     loginBox.id = 'googleSignInButton';
     loginBox.style.margin = '1.5rem auto';
@@ -41,8 +44,13 @@
         email: payload.email,
         picture: payload.picture
       };
-      document.getElementById('googleSignInButton')?.remove();
-      document.querySelector('.main-content').style.display = 'grid';
+
+      const loginBtn = document.getElementById('googleSignInButton');
+      if (loginBtn) loginBtn.remove();
+
+      const mainContent = document.querySelector('.main-content');
+      if (mainContent) mainContent.style.display = 'grid';
+
       renderLogout();
     } catch (e) {
       console.error('登入處理錯誤：', e);
@@ -51,6 +59,8 @@
 
   function renderLogout() {
     const header = document.querySelector('.header');
+    if (!header) return;
+
     const userDiv = document.createElement('div');
     userDiv.style.marginTop = '1rem';
     userDiv.style.display = 'flex';
