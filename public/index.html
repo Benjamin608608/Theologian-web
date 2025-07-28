@@ -1,11 +1,15 @@
+<style>
+  .main-content {
+    display: none;
+  }
+</style>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
   const GOOGLE_CLIENT_ID = '819177680816-qhqs26nalisihdnducd35so1g4ai66rv.apps.googleusercontent.com';
   let currentUser = null;
 
   document.addEventListener('DOMContentLoaded', () => {
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) mainContent.style.display = 'none';
     renderGoogleLogin();
   });
 
