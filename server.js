@@ -5,6 +5,7 @@ const OpenAI = require('openai');
 const session = require('express-session');
 const passport = require('passport');
 require('dotenv').config();
+const { MongoClient } = require('mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,20 @@ const openai = new OpenAI({
 
 // 你的向量資料庫 ID
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_6886f711eda0819189b6c017d6b96d23';
+
+// MongoDB Atlas 連線
+let mongoClient, loginLogsCollection;
+(async () => {
+  try {
+    mongoClient = new MongoClient(process.env.MONGO_URI, { useUnifiedTopology: true });
+    await mongoClient.connect();
+    const db = mongoClient.db('theologian');
+    loginLogsCollection = db.collection('loginLogs');
+    console.log('✅ 已連線 MongoDB Atlas (theologian.loginLogs)');
+  } catch (err) {
+    console.error('❌ 連線 MongoDB Atlas 失敗:', err.message);
+  }
+})();
 
 // Session 配置（secure: true，適用於 https 雲端平台）
 app.use(session({
@@ -94,8 +109,22 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
   app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login' }),
-    function(req, res) {
-      // 成功登入後重定向到首頁
+    async function(req, res) {
+      // 寫入登入紀錄到 MongoDB Atlas
+      if (loginLogsCollection && req.user) {
+        try {
+          await loginLogsCollection.insertOne({
+            email: req.user.email,
+            name: req.user.name,
+            loginAt: new Date(),
+            googleId: req.user.id,
+            picture: req.user.picture
+          });
+          console.log(`[登入紀錄] ${req.user.email} ${req.user.name}`);
+        } catch (err) {
+          console.error('寫入登入紀錄失敗:', err.message);
+        }
+      }
       res.redirect('/');
     }
   );
