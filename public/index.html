@@ -279,16 +279,18 @@
 
         .source-title {
             font-weight: 600;
+            font-style: italic;
             color: #333;
             margin-bottom: 4px;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
         }
 
         .source-quote {
             font-style: italic;
             color: #666;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             line-height: 1.4;
+            padding-left: 8px;
         }
 
         .error-message {
@@ -333,7 +335,7 @@
                         <textarea 
                             id="question" 
                             class="search-input" 
-                            placeholder="例如：什麼是救恩？因信稱義是什麼意思？...這段聖經是什麼意思？"
+                            placeholder="例如：什麼是救恩？因信稱義是什麼意思？...這段聖經是在說什麼？"
                             required
                         ></textarea>
                     </div>
@@ -629,10 +631,17 @@
                 sources.forEach(source => {
                     sourcesHTML += `
                         <div class="source-item">
-                            <div class="source-title">[${source.index}] ${source.fileName}</div>
-                            <div class="source-quote">"${source.quote}"</div>
-                        </div>
-                    `;
+                            <div class="source-title">[${source.index}] ${source.fileName}</div>`;
+                    
+                    if (source.quote && source.quote.trim()) {
+                        // 移除引號並確保斜體格式
+                        let cleanQuote = source.quote.replace(/^["'"']|["'"']$/g, '').trim();
+                        if (cleanQuote) {
+                            sourcesHTML += `<div class="source-quote">"${cleanQuote}"</div>`;
+                        }
+                    }
+                    
+                    sourcesHTML += `</div>`;
                 });
                 
                 sourcesHTML += '</div>';
