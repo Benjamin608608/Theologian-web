@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>神學知識庫</title>
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-LXZJ4SFY64"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-LXZJ4SFY64');
+    </script>
     <style>
         * {
             margin: 0;
@@ -424,6 +433,15 @@
                     item.addEventListener('click', () => {
                         const question = item.getAttribute('data-question');
                         this.questionInput.value = question;
+                        
+                        // Google Analytics 追蹤範例問題點擊
+                        if (typeof gtag !== 'undefined') {
+                            gtag('event', 'example_question_click', {
+                                'question_text': question,
+                                'event_category': 'user_interaction'
+                            });
+                        }
+                        
                         this.handleSearch(new Event('submit'));
                     });
                 });
@@ -435,14 +453,41 @@
                 const question = this.questionInput.value.trim();
                 if (!question) return;
 
+                // Google Analytics 追蹤搜尋開始
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'search_start', {
+                        'search_term': question,
+                        'event_category': 'theology_search'
+                    });
+                }
+
                 this.showLoading();
                 this.startLoadingAnimation();
 
                 try {
-                    // 模擬 API 調用 - 這裡需要替換為實際的後端 API
                     const response = await this.callSearchAPI(question);
+                    
+                    // Google Analytics 追蹤搜尋成功
+                    if (typeof gtag !== 'undefined') {
+                        gtag('event', 'search_success', {
+                            'search_term': question,
+                            'has_sources': response.sources && response.sources.length > 0,
+                            'sources_count': response.sources ? response.sources.length : 0,
+                            'event_category': 'theology_search'
+                        });
+                    }
+                    
                     this.showResult(question, response);
                 } catch (error) {
+                    // Google Analytics 追蹤搜尋錯誤
+                    if (typeof gtag !== 'undefined') {
+                        gtag('event', 'search_error', {
+                            'search_term': question,
+                            'error_message': error.message,
+                            'event_category': 'theology_search'
+                        });
+                    }
+                    
                     this.showError(error.message);
                 } finally {
                     this.stopLoadingAnimation();
